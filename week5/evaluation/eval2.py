@@ -1,6 +1,7 @@
 import sys
 import os
 import math
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pydantic import BaseModel, Field
 from litellm import completion
 from dotenv import load_dotenv
@@ -13,6 +14,10 @@ load_dotenv(override=True)
 
 MODEL = "openrouter/openai/gpt-4.1-nano"
 db_name = "vector_db"
+
+# Concurrency limits for parallel processing
+MAX_WORKERS_RETRIEVAL = 10  # Vector DB can handle multiple concurrent queries
+MAX_WORKERS_ANSWERS = 5      # LLM API rate limits (adjust based on your API provider)
 
 
 class RetrievalEval(BaseModel):
@@ -173,23 +178,84 @@ Provide detailed feedback and scores from 1 (very poor) to 5 (ideal) for each di
 
 
 def evaluate_all_retrieval():
-    """Evaluate all retrieval tests."""
+    """
+    Evaluate all retrieval tests with parallel processing.
+    
+    Uses ThreadPoolExecutor to process multiple tests concurrently for better performance.
+    """
     tests = load_tests(TEST_FILE)
     total_tests = len(tests)
-    for index, test in enumerate(tests):
-        result = evaluate_retrieval(test)
-        progress = (index + 1) / total_tests
-        yield test, result, progress
+    completed = 0
+    
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS_RETRIEVAL) as executor:
+        # Submit all tasks
+        future_to_test = {
+            executor.submit(evaluate_retrieval, test): test 
+            for test in tests
+        }
+        
+        # Process results as they complete
+        for future in as_completed(future_to_test):
+            test = future_to_test[future]
+            try:
+                result = future.result()
+                completed += 1
+                progress = completed / total_tests
+                yield test, result, progress
+            except Exception as exc:
+                print(f"Test {test.question[:50]}... generated an exception: {exc}")
+                # Yield a zero result on error
+                result = RetrievalEval(
+                    mrr=0.0,
+                    ndcg=0.0,
+                    keywords_found=0,
+                    total_keywords=len(test.keywords),
+                    keyword_coverage=0.0,
+                )
+                completed += 1
+                progress = completed / total_tests
+                yield test, result, progress
 
 
 def evaluate_all_answers():
-    """Evaluate all answers to tests using batched async execution."""
+    """
+    Evaluate all answers to tests using parallel execution.
+    
+    Uses ThreadPoolExecutor to process multiple tests concurrently for better performance.
+    """
     tests = load_tests(TEST_FILE)
     total_tests = len(tests)
-    for index, test in enumerate(tests):
-        result = evaluate_answer(test)[0]
-        progress = (index + 1) / total_tests
-        yield test, result, progress
+    completed = 0
+    
+    # Use ThreadPoolExecutor for parallel processing
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS_ANSWERS) as executor:
+        # Submit all tasks
+        future_to_test = {
+            executor.submit(evaluate_answer, test): test 
+            for test in tests
+        }
+        
+        # Process results as they complete
+        for future in as_completed(future_to_test):
+            test = future_to_test[future]
+            try:
+                result, _, _ = future.result()
+                completed += 1
+                progress = completed / total_tests
+                yield test, result, progress
+            except Exception as exc:
+                print(f"Test {test.question[:50]}... generated an exception: {exc}")
+                # Yield a zero result on error
+                result = AnswerEval(
+                    feedback=f"Error: {exc}",
+                    accuracy=1.0,
+                    completeness=1.0,
+                    relevance=1.0,
+                )
+                completed += 1
+                progress = completed / total_tests
+                yield test, result, progress
 
 
 def run_cli_evaluation(test_number: int):
@@ -258,3 +324,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

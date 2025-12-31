@@ -14,10 +14,10 @@ class TestQuestion(BaseModel):
     category: str = Field(description="Question category (e.g., direct_fact, spanning, temporal)")
 
 
-def load_tests() -> list[TestQuestion]:
+def load_tests(test_file: str) -> list[TestQuestion]:
     """Load test questions from JSONL file."""
     tests = []
-    with open(TEST_FILE, "r", encoding="utf-8") as f:
+    with open(test_file, "r", encoding="utf-8") as f:
         for line in f:
             data = json.loads(line.strip())
             tests.append(TestQuestion(**data))

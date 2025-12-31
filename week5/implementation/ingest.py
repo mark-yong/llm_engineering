@@ -1,6 +1,7 @@
 import os
 import glob
 from pathlib import Path
+from typing import cast
 from langchain_community.document_loaders import DirectoryLoader, TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_chroma import Chroma
@@ -10,7 +11,7 @@ from langchain_openai import OpenAIEmbeddings
 
 from dotenv import load_dotenv
 
-MODEL = "gpt-4.1-nano"
+MODEL = "openai/gpt-4.1-nano"  # OpenRouter model format
 
 DB_NAME = str(Path(__file__).parent.parent / "vector_db")
 KNOWLEDGE_BASE = str(Path(__file__).parent.parent / "knowledge-base")
@@ -19,7 +20,12 @@ KNOWLEDGE_BASE = str(Path(__file__).parent.parent / "knowledge-base")
 
 load_dotenv(override=True)
 
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+# Using OpenAI embeddings via OpenRouter (OpenRouter supports OpenAI embeddings API)
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-large",
+    api_key=cast(str, os.getenv("OPENROUTER_API_KEY")),  # type: ignore
+    base_url="https://openrouter.ai/api/v1"
+)
 
 
 def fetch_documents():
@@ -54,9 +60,16 @@ def create_embeddings(chunks):
     collection = vectorstore._collection
     count = collection.count()
 
-    sample_embedding = collection.get(limit=1, include=["embeddings"])["embeddings"][0]
-    dimensions = len(sample_embedding)
-    print(f"There are {count:,} vectors with {dimensions:,} dimensions in the vector store")
+    if count > 0:
+        result = collection.get(limit=1, include=["embeddings"])
+        if result and "embeddings" in result and result["embeddings"]:
+            sample_embedding = result["embeddings"][0]
+            dimensions = len(sample_embedding)
+            print(f"There are {count:,} vectors with {dimensions:,} dimensions in the vector store")
+        else:
+            print(f"There are {count:,} vectors in the vector store (dimensions unknown)")
+    else:
+        print("The vector store is empty")
     return vectorstore
 
 

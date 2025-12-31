@@ -1,8 +1,10 @@
+import os
 from pathlib import Path
+from typing import cast
 from langchain_openai import ChatOpenAI, OpenAIEmbeddings
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.messages import SystemMessage, HumanMessage, convert_to_messages
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, convert_to_messages
 from langchain_core.documents import Document
 
 from dotenv import load_dotenv
@@ -10,11 +12,16 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
-MODEL = "gpt-4.1-nano"
+MODEL = "openai/gpt-4.1-nano"  # OpenRouter model format
 DB_NAME = str(Path(__file__).parent.parent / "vector_db")
 
 # embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
-embeddings = OpenAIEmbeddings(model="text-embedding-3-large")
+# Using OpenAI embeddings via OpenRouter (OpenRouter supports OpenAI embeddings API)
+embeddings = OpenAIEmbeddings(
+    model="text-embedding-3-large",
+    api_key=cast(str, os.getenv("OPENROUTER_API_KEY")),  # type: ignore
+    base_url="https://openrouter.ai/api/v1"
+)
 RETRIEVAL_K = 10
 
 SYSTEM_PROMPT = """
@@ -28,7 +35,12 @@ Context:
 
 vectorstore = Chroma(persist_directory=DB_NAME, embedding_function=embeddings)
 retriever = vectorstore.as_retriever()
-llm = ChatOpenAI(temperature=0, model_name=MODEL)
+llm = ChatOpenAI(
+    temperature=0,
+    model=MODEL,
+    api_key=cast(str, os.getenv("OPENROUTER_API_KEY")),  # type: ignore
+    base_url="https://openrouter.ai/api/v1"
+)
 
 
 def fetch_context(question: str) -> list[Document]:
@@ -54,8 +66,9 @@ def answer_question(question: str, history: list[dict] = []) -> tuple[str, list[
     docs = fetch_context(combined)
     context = "\n\n".join(doc.page_content for doc in docs)
     system_prompt = SYSTEM_PROMPT.format(context=context)
-    messages = [SystemMessage(content=system_prompt)]
+    messages: list[BaseMessage] = [SystemMessage(content=system_prompt)]
     messages.extend(convert_to_messages(history))
     messages.append(HumanMessage(content=question))
     response = llm.invoke(messages)
-    return response.content, docs
+    content = response.content if isinstance(response.content, str) else str(response.content)
+    return content, docs

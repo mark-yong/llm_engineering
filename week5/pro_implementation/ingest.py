@@ -4,14 +4,16 @@ from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from chromadb import PersistentClient
 from tqdm import tqdm
+import litellm
 from litellm import completion
 from multiprocessing import Pool
 from tenacity import retry, wait_exponential
+import os
 
-
+# litellm._turn_on_debug()
 load_dotenv(override=True)
 
-MODEL = "openai/gpt-4.1-nano"
+MODEL = "openrouter/openai/gpt-4.1-nano"
 
 DB_NAME = str(Path(__file__).parent.parent / "preprocessed_db")
 collection_name = "docs"
@@ -23,7 +25,11 @@ wait = wait_exponential(multiplier=1, min=10, max=240)
 
 WORKERS = 3
 
-openai = OpenAI()
+# Configure OpenAI client to use OpenRouter for embeddings
+openai = OpenAI(
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+    base_url=os.getenv("OPENROUTER_BASE_URL")
+)
 
 
 class Result(BaseModel):

@@ -72,8 +72,10 @@ Reply only with the list of ranked chunk ids, nothing else. Include all the chun
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_prompt},
     ]
-    response = completion(model=MODEL, messages=messages, response_format=RankOrder)
-    reply = response.choices[0].message.content
+    response = completion(model=MODEL, messages=messages, response_format=RankOrder, stream=False)
+    reply = response.choices[0].message.content  # type: ignore[attr-defined]
+    if reply is None:
+        raise ValueError("Received empty response from model")
     order = RankOrder.model_validate_json(reply).order
     return [chunks[i - 1] for i in order]
 
@@ -107,8 +109,8 @@ Respond only with a short, refined question that you will use to search the Know
 It should be a VERY short specific question most likely to surface content. Focus on the question details.
 IMPORTANT: Respond ONLY with the precise knowledgebase query, nothing else.
 """
-    response = completion(model=MODEL, messages=[{"role": "system", "content": message}])
-    return response.choices[0].message.content
+    response = completion(model=MODEL, messages=[{"role": "system", "content": message}], stream=False)
+    return response.choices[0].message.content  # type: ignore[attr-defined]
 
 
 def merge_chunks(chunks, reranked):
@@ -124,8 +126,9 @@ def fetch_context_unranked(question):
     query = openai.embeddings.create(model=embedding_model, input=[question]).data[0].embedding
     results = collection.query(query_embeddings=[query], n_results=RETRIEVAL_K)
     chunks = []
-    for result in zip(results["documents"][0], results["metadatas"][0]):
-        chunks.append(Result(page_content=result[0], metadata=result[1]))
+    if results["documents"] and results["metadatas"] and len(results["documents"]) > 0 and len(results["metadatas"]) > 0:
+        for result in zip(results["documents"][0], results["metadatas"][0]):
+            chunks.append(Result(page_content=result[0], metadata=dict(result[1]) if result[1] else {}))
     return chunks
 
 
@@ -145,5 +148,5 @@ def answer_question(question: str, history: list[dict] = []) -> tuple[str, list]
     """
     chunks = fetch_context(question)
     messages = make_rag_messages(question, history, chunks)
-    response = completion(model=MODEL, messages=messages)
-    return response.choices[0].message.content, chunks
+    response = completion(model=MODEL, messages=messages, stream=False)
+    return response.choices[0].message.content, chunks  # type: ignore[attr-defined]

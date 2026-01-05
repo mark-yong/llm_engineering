@@ -6,7 +6,6 @@
   "typeCheckingMode": "basic",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
-  "pythonPath": "/root/llm_engineering/.venv/bin/python",
   "executionEnvironments": [
     {
       "root": "/root/llm_engineering",

@@ -3,7 +3,7 @@ import pandas as pd
 from collections import defaultdict
 from dotenv import load_dotenv
 
-from evaluation.eval import evaluate_all_retrieval, evaluate_all_answers
+from evaluation.eval2 import evaluate_all_retrieval, evaluate_all_answers
 
 load_dotenv(override=True)
 

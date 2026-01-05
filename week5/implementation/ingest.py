@@ -62,7 +62,7 @@ def create_embeddings(chunks):
 
     if count > 0:
         result = collection.get(limit=1, include=["embeddings"])
-        if result and "embeddings" in result and result["embeddings"]:
+        if result and "embeddings" in result and result["embeddings"] is not None and len(result["embeddings"]) > 0:
             sample_embedding = result["embeddings"][0]
             dimensions = len(sample_embedding)
             print(f"There are {count:,} vectors with {dimensions:,} dimensions in the vector store")

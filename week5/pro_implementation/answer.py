@@ -5,12 +5,12 @@ from litellm import completion
 from pydantic import BaseModel, Field
 from pathlib import Path
 from tenacity import retry, wait_exponential
-
+import os
 
 load_dotenv(override=True)
 
-# MODEL = "openai/gpt-4.1-nano"
-MODEL = "groq/openai/gpt-oss-120b"
+# MODEL = "openrouter/openai/gpt-4.1-nano"
+MODEL = "openrouter/openai/gpt-oss-120b"
 DB_NAME = str(Path(__file__).parent.parent / "preprocessed_db")
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge-base"
 SUMMARIES_PATH = Path(__file__).parent.parent / "summaries"
@@ -19,7 +19,11 @@ collection_name = "docs"
 embedding_model = "text-embedding-3-large"
 wait = wait_exponential(multiplier=1, min=10, max=240)
 
-openai = OpenAI()
+# Configure OpenAI client to use OpenRouter for embeddings
+openai = OpenAI(
+    api_key=os.getenv("OPENROUTER_API_KEY"),
+    base_url=os.getenv("OPENROUTER_BASE_URL")
+)
 
 chroma = PersistentClient(path=DB_NAME)
 collection = chroma.get_or_create_collection(collection_name)

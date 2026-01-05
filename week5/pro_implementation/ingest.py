@@ -9,6 +9,7 @@ from litellm import completion
 from multiprocessing import Pool
 from tenacity import retry, wait_exponential
 import os
+import numpy as np
 
 # litellm._turn_on_debug()
 load_dotenv(override=True)
@@ -109,8 +110,11 @@ def make_messages(document):
 @retry(wait=wait)
 def process_document(document):
     messages = make_messages(document)
-    response = completion(model=MODEL, messages=messages, response_format=Chunks)
-    reply = response.choices[0].message.content
+    response = completion(model=MODEL, messages=messages, response_format=Chunks, stream=False)
+    # With stream=False, response should have .choices attribute
+    reply = response.choices[0].message.content  # type: ignore[attr-defined]
+    if reply is None:
+        raise ValueError("Received empty response from model")
     doc_as_chunks = Chunks.model_validate_json(reply).chunks
     return [chunk.as_result(document) for chunk in doc_as_chunks]
 
@@ -134,7 +138,7 @@ def create_embeddings(chunks):
 
     texts = [chunk.page_content for chunk in chunks]
     emb = openai.embeddings.create(model=embedding_model, input=texts).data
-    vectors = [e.embedding for e in emb]
+    vectors = np.array([e.embedding for e in emb], dtype=np.float32)
 
     collection = chroma.get_or_create_collection(collection_name)
 

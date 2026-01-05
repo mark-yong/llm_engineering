@@ -20,17 +20,20 @@ DB_NAME = str(Path(__file__).parent.parent / "preprocessed_db")
 collection_name = "docs"
 embedding_model = "text-embedding-3-large"
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge-base"
-AVERAGE_CHUNK_SIZE = 100
+AVERAGE_CHUNK_SIZE = 500
 wait = wait_exponential(multiplier=1, min=10, max=240)
 
 
 WORKERS = 3
 
 # Configure OpenAI client to use OpenRouter for embeddings
+api_key = os.getenv("OPENROUTER_API_KEY")
+base_url = os.getenv("OPENROUTER_BASE_URL")
+
 openai = OpenAI(
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url=os.getenv("OPENROUTER_BASE_URL")
-)
+    api_key=api_key,
+    base_url=base_url
+    )
 
 
 class Result(BaseModel):

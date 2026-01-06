@@ -6,6 +6,7 @@
   "typeCheckingMode": "basic",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
+  "reportGeneralTypeIssues": "warning",
   "executionEnvironments": [
     {
       "root": "/root/llm_engineering",

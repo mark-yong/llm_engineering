@@ -10,20 +10,29 @@ import os
 load_dotenv(override=True)
 
 # MODEL = "openrouter/openai/gpt-4.1-nano"
-MODEL = "openrouter/openai/gpt-oss-120b"
+# MODEL = "openrouter/openai/gpt-oss-120b"
+MODEL = "unsloth_GLM-4.5-Air"
 DB_NAME = str(Path(__file__).parent.parent / "preprocessed_db")
 KNOWLEDGE_BASE_PATH = Path(__file__).parent.parent / "knowledge-base"
 SUMMARIES_PATH = Path(__file__).parent.parent / "summaries"
 
 collection_name = "docs"
-embedding_model = "text-embedding-3-large"
+# embedding_model = "text-embedding-3-large"
+embedding_model = "qwen3-embedding-4b:q8_0:1k"
 wait = wait_exponential(multiplier=1, min=10, max=240)
 
 # Configure OpenAI client to use OpenRouter for embeddings
+if MODEL[:11] == "openrouter/":
+    api_key = os.getenv("OPENROUTER_API_KEY")
+    base_url = os.getenv("OPENROUTER_BASE_URL")
+else:
+    api_key = os.getenv("LCPP_TOKEN")
+    base_url = os.getenv("LCPP_BASE_URL")
+
 openai = OpenAI(
-    api_key=os.getenv("OPENROUTER_API_KEY"),
-    base_url=os.getenv("OPENROUTER_BASE_URL")
-)
+    api_key=api_key,
+    base_url=base_url
+    )
 
 chroma = PersistentClient(path=DB_NAME)
 collection = chroma.get_or_create_collection(collection_name)

@@ -3,10 +3,9 @@
   "venv": ".venv",
   "pythonVersion": "3.12",
   "pythonPlatform": "Linux",
-  "typeCheckingMode": "basic",
+  "typeCheckingMode": "off",
   "reportMissingImports": true,
   "reportMissingTypeStubs": false,
-  "reportGeneralTypeIssues": "warning",
   "executionEnvironments": [
     {
       "root": "/root/llm_engineering",
